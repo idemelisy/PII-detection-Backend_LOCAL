@@ -30,9 +30,9 @@ const MODEL_STORAGE_KEY = 'piiModelKey';
 let backendModels = [];
 
 // Backend API configuration
-const BACKEND_BASE_URL = 'https://settled-tribes-gray-resume.trycloudflare.com';
-const BACKEND_API_URL = `${BACKEND_BASE_URL}/detect-pii`;
-const BACKEND_HEALTH_URL = `${BACKEND_BASE_URL}/health`;
+const BACKEND_ORIGIN = 'https://settled-tribes-gray-resume.trycloudflare.com';
+const BACKEND_API_URL = `${BACKEND_ORIGIN}/detect-pii`;
+const BACKEND_HEALTH_URL = `${BACKEND_ORIGIN}/health`;
 // Model configurations with different mock data sets
 const MODEL_AUTO = 'auto';
 
@@ -193,11 +193,11 @@ function normalizeBackendModels(rawModels) {
     return unique;
 }
 
-function populateModelSelectOptions(selectedValue, targetSelect) {
+function populateModelSelectOptions(selectedValue, targetSelect, modelsOverride) {
     const modelSelect = targetSelect || document.getElementById(MODEL_SELECT_ID);
     if (!modelSelect) return;
 
-    const models = getRenderableModels();
+    const models = modelsOverride && modelsOverride.length ? modelsOverride : getRenderableModels();
     const fragment = document.createDocumentFragment();
 
     const autoOption = document.createElement('option');
@@ -247,6 +247,12 @@ function updateModelStatusIndicator(modelKey) {
 
     const label = getModelDisplayName(modelKey);
     statusEl.textContent = `Last run: ${label}`;
+}
+
+function getSelectedLanguage() {
+    const languageSelect = document.getElementById('pii-language-select');
+    const value = languageSelect?.value;
+    return (value && value.trim()) || 'en';
 }
 
 function saveModelSelection(modelKey) {
@@ -321,26 +327,25 @@ async function refreshBackendModels() {
             throw new Error(`Health endpoint responded with ${response.status}`);
         }
         const data = await response.json();
-        backendModels = normalizeBackendModels(data?.models);
-        if (!backendModels.length) {
-            backendModels = getFallbackModelList();
-        }
+        const fetchedModels = normalizeBackendModels(data?.models);
+        backendModels = fetchedModels.length ? fetchedModels : getFallbackModelList();
 
-        const defaultModel = data?.default_model || currentModel || 'presidio';
+        const defaultModel = data?.default_model || backendModels[0]?.key || currentModel || 'presidio';
         const storedSelection = await getStoredModelSelection(defaultModel);
         currentModel = storedSelection || defaultModel;
         lastResolvedModel = currentModel === MODEL_AUTO ? defaultModel : currentModel;
 
-        populateModelSelectOptions(currentModel);
+        populateModelSelectOptions(currentModel, undefined, backendModels);
         updateModelStatusIndicator(lastResolvedModel || currentModel);
         console.log('[PII Extension] Backend models loaded:', backendModels.map(m => m.key));
     } catch (error) {
         console.warn('[PII Extension] Failed to load backend models, using fallback list:', error);
+        backendModels = getFallbackModelList();
         const storedSelection = await getStoredModelSelection(currentModel);
         if (storedSelection) {
             currentModel = storedSelection;
         }
-        populateModelSelectOptions(currentModel);
+        populateModelSelectOptions(currentModel, undefined, backendModels);
         updateModelStatusIndicator(lastResolvedModel || currentModel);
     }
 }
@@ -1501,9 +1506,19 @@ async function checkBackendHealth() {
                     if (response && response.success) {
                         const data = response.data;
                         console.log("[PII Extension] Health check response:", data);
-                        // Check for status and either presidio_initialized or presidio field
-                        const isHealthy = data.status === 'healthy' && 
-                            (data.presidio_initialized === true || data.presidio === true);
+                        const hasModels = Array.isArray(data?.models) && data.models.length > 0;
+                        if (hasModels) {
+                            backendModels = normalizeBackendModels(data.models);
+                            populateModelSelectOptions(currentModel, undefined, backendModels);
+                        }
+                        const isHealthy = data.status === 'healthy' && (hasModels || data.default_model);
+                        if (!hasModels && data.default_model && !backendModels.length) {
+                            backendModels = [data.default_model].map(key => ({
+                                key,
+                                name: MODEL_CONFIGS[key]?.name || key
+                            }));
+                            populateModelSelectOptions(currentModel, undefined, backendModels);
+                        }
                         console.log("[PII Extension] Backend is healthy:", isHealthy);
                         resolve(isHealthy);
                     } else {
@@ -1529,18 +1544,18 @@ async function detectPIIFromBackend(text, model = 'presidio') {
                 reject(new Error("Request timed out. The text might be too long or the server is slow."));
             }, 30000);
             
+            const selectedLanguage = getSelectedLanguage();
             const payload = {
-                action: 'detectPII',
-                text: text,
-                language: 'en'
+                text,
+                language: selectedLanguage,
+                ...(model && model !== MODEL_AUTO ? { model } : {})
             };
-
-            if (model && model !== MODEL_AUTO) {
-                payload.model = model;
-            }
             
             chrome.runtime.sendMessage(
-                payload,
+                {
+                    action: 'detectPII',
+                    ...payload
+                },
                 (response) => {
                     clearTimeout(timeout);
                     
@@ -1553,6 +1568,9 @@ async function detectPIIFromBackend(text, model = 'presidio') {
                     if (response && response.success) {
                         const data = response.data;
                         console.log(`[PII Extension] Backend detected ${data.total_entities} PII entities`);
+                        if (data?.model_key || data?.model_used) {
+                            console.log('Backend model used:', data.model_key || data.model_used);
+                        }
                         resolve(data);
                     } else {
                         const errorMsg = response?.error || "Unknown error";
