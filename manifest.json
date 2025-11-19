@@ -1,0 +1,36 @@
+{
+  "manifest_version": 3,
+  "name": "PII EXtension LOCAL + GPU)",
+  "version": "1.0",
+  "description": "Google Docs üzerinde PII tespiti yapar ve vurgular.",
+  
+  "permissions": [
+    "storage" 
+  ],
+
+  "host_permissions": [
+    "https://*.trycloudflare.com/*",
+    "https://*.loca.lt/*",
+    "http://127.0.0.1:5000/*",
+    "http://localhost:5000/*"
+  ],
+
+  "background": {
+    "service_worker": "background.js"
+  },
+
+  "content_scripts": [
+    {
+      "matches": [
+        "https://docs.google.com/document/d/*",
+        "https://chat.openai.com/*",
+        "https://chatgpt.com/*",
+        "https://mail.google.com/*",
+        "https://*/*",
+        "http://*/*"
+      ],
+      "css": ["style.css"],
+      "js": ["content.js"]
+    }
+  ]
+}

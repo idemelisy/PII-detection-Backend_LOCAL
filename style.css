@@ -1,0 +1,793 @@
+/* Scan button with new color palette */
+#pii-scan-button {
+  background-color: #048BA8;
+  color: white;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  font-family: 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', 'Segoe UI Symbol', 'Google Sans', Roboto, Arial, sans-serif;
+  font-size: 14px;
+  transition: all 0.3s ease;
+  margin: 0;
+  box-shadow: 0 2px 4px rgba(4, 139, 168, 0.3);
+  text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+
+#pii-scan-button:hover {
+  background-color: #037a94;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(4, 139, 168, 0.4);
+}
+
+#pii-scan-button:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(4, 139, 168, 0.3);
+}
+
+/* Clear button with new color palette */
+#pii-clear-button {
+  background-color: #22D3EE;
+  color: black;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  font-family: 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', 'Segoe UI Symbol', 'Google Sans', Roboto, Arial, sans-serif;
+  font-size: 14px;
+  transition: all 0.3s ease;
+  margin: 0;
+  box-shadow: 0 2px 4px rgba(34, 211, 238, 0.3);
+  text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+
+#pii-clear-button:hover {
+  background-color: #0891b2;
+  color: white;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(34, 211, 238, 0.4);
+}
+
+#pii-clear-button:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(34, 211, 238, 0.3);
+}
+
+/* Accept All button with new color palette */
+#pii-accept-all-button {
+  background-color: #67E8F9;
+  color: black;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  font-family: 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', 'Segoe UI Symbol', 'Google Sans', Roboto, Arial, sans-serif;
+  font-size: 14px;
+  transition: all 0.3s ease;
+  margin: 0;
+  box-shadow: 0 2px 4px rgba(103, 232, 249, 0.3);
+  text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+
+#pii-accept-all-button:hover {
+  background-color: #22D3EE;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(103, 232, 249, 0.4);
+}
+
+#pii-accept-all-button:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(103, 232, 249, 0.3);
+}
+
+/* Fill (faker) button with new color palette */
+#pii-fill-button {
+  background-color: #A78BFA;
+  color: white;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  font-family: 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', 'Segoe UI Symbol', 'Google Sans', Roboto, Arial, sans-serif;
+  font-size: 14px;
+  transition: all 0.3s ease;
+  margin: 0;
+  box-shadow: 0 2px 4px rgba(167, 139, 250, 0.3);
+  text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+
+#pii-fill-button:hover {
+  background-color: #8B5CF6;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(167, 139, 250, 0.4);
+}
+
+#pii-fill-button:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(167, 139, 250, 0.3);
+}
+
+/* Revert PIIs button with new color palette */
+#pii-revert-button {
+  background-color: #F59E0B;
+  color: white;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  font-family: 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', 'Segoe UI Symbol', 'Google Sans', Roboto, Arial, sans-serif;
+  font-size: 14px;
+  transition: all 0.3s ease;
+  margin: 0;
+  box-shadow: 0 2px 4px rgba(245, 158, 11, 0.3);
+  text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+
+#pii-revert-button:hover {
+  background-color: #D97706;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(245, 158, 11, 0.4);
+}
+
+#pii-revert-button:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(245, 158, 11, 0.3);
+}
+
+/* Model selection container and dropdown */
+#pii-model-container {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(4, 139, 168, 0.2);
+}
+
+#pii-model-select {
+  width: 100%;
+  padding: 8px 12px;
+  border: 2px solid #048BA8;
+  border-radius: 6px;
+  background-color: #F0FCFF;
+  color: #048BA8;
+  font-family: 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', 'Segoe UI Symbol', 'Google Sans', Roboto, Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(4, 139, 168, 0.1);
+}
+
+#pii-model-select:hover {
+  border-color: #22D3EE;
+  box-shadow: 0 3px 6px rgba(4, 139, 168, 0.2);
+  transform: translateY(-1px);
+}
+
+#pii-model-select:focus {
+  outline: none;
+  border-color: #67E8F9;
+  box-shadow: 0 0 0 3px rgba(103, 232, 249, 0.3);
+}
+
+#pii-model-select option {
+  padding: 8px;
+  background-color: #F0FCFF;
+  color: #048BA8;
+  font-weight: 600;
+}
+
+#pii-model-select option:hover,
+#pii-model-select option:checked {
+  background-color: #67E8F9;
+  color: black;
+}
+
+#pii-mode-toggle {
+  margin-top: 12px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(4, 139, 168, 0.2);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+#pii-mode-toggle label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #048BA8;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+#pii-mode-chip {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(4, 139, 168, 0.1);
+  color: #048BA8;
+  margin-top: 4px;
+  width: fit-content;
+}
+
+#pii-mode-chip[data-mode="agent"] {
+  background: rgba(103, 232, 249, 0.25);
+  color: #0f172a;
+}
+
+#pii-mode-select {
+  width: 100%;
+  padding: 8px 12px;
+  border: 2px solid rgba(4, 139, 168, 0.2);
+  border-radius: 6px;
+  background-color: #fff;
+  font-weight: 600;
+  color: #048BA8;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+#pii-mode-select:hover {
+  border-color: #048BA8;
+  box-shadow: 0 2px 6px rgba(4, 139, 168, 0.2);
+}
+
+#pii-mode-hint {
+  font-size: 11px;
+  color: #0f172a;
+  opacity: 0.8;
+  line-height: 1.4;
+}
+
+#pii-send-anonymized-button {
+  background: linear-gradient(135deg, #048BA8 0%, #15B5D5 100%);
+  color: white;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  font-family: 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', 'Segoe UI Symbol', 'Google Sans', Roboto, Arial, sans-serif;
+  font-size: 14px;
+  transition: all 0.3s ease;
+  margin: 4px 0 0;
+  box-shadow: 0 2px 6px rgba(4, 139, 168, 0.3);
+  display: none;
+}
+
+#pii-send-anonymized-button:hover:not(.pii-busy) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(4, 139, 168, 0.4);
+}
+
+#pii-send-anonymized-button.pii-busy {
+  opacity: 0.8;
+  cursor: wait;
+}
+
+.pii-agent-toast {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translate(-50%, 20px);
+  padding: 10px 18px;
+  border-radius: 999px;
+  background: rgba(4, 139, 168, 0.95);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: 0 8px 20px rgba(4, 139, 168, 0.3);
+  opacity: 0;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+  z-index: 1000000;
+}
+
+.pii-agent-toast.visible {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.pii-agent-toast[data-variant="error"] {
+  background: rgba(239, 68, 68, 0.95);
+  box-shadow: 0 8px 20px rgba(239, 68, 68, 0.3);
+}
+
+.pii-agent-toast[data-variant="success"] {
+  background: rgba(16, 185, 129, 0.95);
+  box-shadow: 0 8px 20px rgba(16, 185, 129, 0.3);
+}
+
+/* Notification animations */
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-20px);
+  }
+}
+
+/* Enhanced container with new color palette */
+#pii-scan-container {
+  position: fixed !important;
+  z-index: 999999 !important;
+  top: 15px;
+  right: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: linear-gradient(135deg, rgba(240, 252, 255, 0.95) 0%, rgba(255, 255, 255, 0.95) 100%);
+  backdrop-filter: blur(10px);
+  padding: 42px 18px 18px;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(4, 139, 168, 0.15), 0 4px 8px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(103, 232, 249, 0.5);
+  transition: all 0.3s ease;
+  min-width: 200px;
+}
+
+.pii-action-bar {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pii-action-button {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: none;
+  background-color: rgba(4, 139, 168, 0.18);
+  color: #0f172a;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+  padding: 0;
+  z-index: 10;
+}
+
+.pii-action-button:hover,
+.pii-action-button:focus-visible {
+  background-color: rgba(4, 139, 168, 0.35);
+  transform: scale(1.05);
+  outline: none;
+}
+
+.pii-action-button:active {
+  transform: scale(0.95);
+}
+
+@supports selector(:focus-visible) {
+  .pii-action-button:focus-visible {
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.6), 0 0 0 4px rgba(4, 139, 168, 0.4);
+  }
+}
+
+#pii-info-button {
+  font-size: 16px;
+  color: #048BA8;
+}
+
+.pii-collapse-button {
+  font-size: 18px;
+  color: #048BA8;
+}
+
+/* Collapsed state - shrinks to small circular icon */
+#pii-scan-container.pii-collapsed {
+  min-width: 48px !important;
+  min-height: 48px !important;
+  width: 48px !important;
+  height: 48px !important;
+  padding: 0 !important;
+  border-radius: 50% !important;
+  overflow: hidden !important;
+  gap: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: linear-gradient(135deg, #048BA8 0%, #22D3EE 100%) !important;
+  box-shadow: 0 4px 12px rgba(4, 139, 168, 0.4) !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+#pii-scan-container.pii-collapsed:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 16px rgba(4, 139, 168, 0.6) !important;
+}
+
+#pii-mini-trigger {
+  position: fixed;
+  z-index: 999999 !important;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: none;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #048BA8 0%, #22D3EE 100%);
+  box-shadow: 0 4px 12px rgba(4, 139, 168, 0.4);
+  color: white;
+  font-size: 28px;
+  cursor: grab;
+  padding: 0;
+  touch-action: none;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+}
+
+#pii-mini-trigger[data-active="true"] {
+  display: flex;
+}
+
+#pii-mini-trigger:hover {
+  transform: scale(1.08);
+  box-shadow: 0 6px 16px rgba(4, 139, 168, 0.6);
+}
+
+#pii-mini-trigger:active {
+  cursor: grabbing;
+  transform: scale(0.97);
+}
+
+#pii-info-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000002;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(3px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+  padding: 16px;
+}
+
+#pii-info-overlay[data-visible="true"] {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+#pii-info-popup {
+  width: 100%;
+  max-width: 520px;
+  max-height: min(75vh, 520px);
+  background: linear-gradient(135deg, rgba(240, 252, 255, 0.98) 0%, rgba(255, 255, 255, 0.98) 100%);
+  border: 2px solid rgba(4, 139, 168, 0.35);
+  border-radius: 16px;
+  padding: 24px 28px 28px;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.3);
+  position: relative;
+  font-family: 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', 'Segoe UI Symbol', 'Google Sans', Roboto, Arial, sans-serif;
+  color: #0f172a;
+  line-height: 1.5;
+  outline: none;
+  overflow-y: auto;
+}
+
+.pii-info-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background-color: rgba(4, 139, 168, 0.15);
+  color: #0f172a;
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.pii-info-close:hover,
+.pii-info-close:focus-visible {
+  background-color: rgba(4, 139, 168, 0.35);
+  transform: rotate(90deg);
+  outline: none;
+}
+
+.pii-info-header h2 {
+  margin: 0 0 8px;
+  color: #048BA8;
+  font-size: 24px;
+}
+
+.pii-info-header p {
+  margin: 0;
+  font-size: 14px;
+}
+
+.pii-info-section {
+  margin-top: 18px;
+}
+
+.pii-info-section h3 {
+  margin: 0 0 8px;
+  font-size: 16px;
+  color: #0f172a;
+}
+
+.pii-info-section ul {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 14px;
+}
+
+.pii-info-section li {
+  margin-bottom: 6px;
+}
+
+.pii-info-models {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 4px 16px;
+  padding-left: 16px;
+}
+
+.pii-info-sample {
+  margin: 0;
+  padding: 12px 14px;
+  background: rgba(34, 211, 238, 0.15);
+  border: 1px solid rgba(4, 139, 168, 0.4);
+  border-radius: 8px;
+  font-family: 'Segoe UI', Consolas, monospace;
+  font-size: 13px;
+  white-space: pre-wrap;
+}
+
+.pii-info-checkbox {
+  margin-top: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: #048BA8;
+  font-size: 14px;
+}
+
+.pii-info-checkbox input {
+  width: 16px;
+  height: 16px;
+}
+
+.pii-info-dismiss {
+  margin-top: 16px;
+  width: 100%;
+  border: none;
+  border-radius: 10px;
+  padding: 12px 18px;
+  font-size: 15px;
+  font-weight: 600;
+  background: linear-gradient(135deg, #048BA8 0%, #22D3EE 100%);
+  color: #fff;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.pii-info-dismiss:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(4, 139, 168, 0.35);
+}
+
+.pii-info-dismiss:active {
+  transform: translateY(0);
+  box-shadow: 0 4px 10px rgba(4, 139, 168, 0.35);
+}
+
+.pii-auto-model-popup {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translate(-50%, -10px);
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.85);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 500;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.4);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  width: 220px;
+  text-align: left;
+  z-index: 20;
+}
+
+.pii-auto-model-popup.visible {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.pii-auto-model-title {
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  opacity: 0.8;
+  margin-bottom: 4px;
+}
+
+.pii-auto-model-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pii-auto-model-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #67E8F9;
+}
+
+.pii-auto-model-reason {
+  font-size: 11px;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+/* PII Highlighting with new color palette */
+.pii-highlight {
+  background-color: #FBBF24 !important;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  display: inline-block;
+  position: relative;
+  overflow: visible;
+  border: 1px solid #F59E0B;
+  box-shadow: 0 1px 3px rgba(251, 191, 36, 0.3);
+}
+
+.pii-highlight:hover {
+  background-color: #F59E0B !important;
+  color: black;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(245, 158, 11, 0.4);
+  border-color: #048BA8;
+}
+
+/* Enhanced inline button with new color palette */
+.pii-inline-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: static;
+  margin-left: 6px;
+  border: none;
+  background-color: #67E8F9;
+  color: black;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(103, 232, 249, 0.3);
+  z-index: 9999999;
+  transition: all 0.2s ease;
+  font-weight: 600;
+}
+
+.pii-inline-btn:hover {
+  background-color: #22D3EE;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 6px rgba(34, 211, 238, 0.4);
+}
+
+/* Hover edildiğinde butonu göster */
+.pii-highlight:hover > .pii-inline-btn {
+  display: inline-block;
+}
+
+/* Buton çok yakınsa taşmalar için uyarı (küçültme) */
+.pii-inline-btn.small {
+  padding: 2px 4px;
+  font-size: 11px;
+  right: -28px;
+}
+
+/* Redact butonunun metin üzerine yerleştirilmesi (Gelişmiş UX için) */
+/* Şu anlık sadece tıklanabilir vurgu ekledik. */
+
+/* PII Suggestion Popup Styling with new color palette */
+.pii-suggestion-popup {
+  position: fixed;
+  background: linear-gradient(135deg, #F0FCFF 0%, rgba(255, 255, 255, 0.95) 100%);
+  border: 2px solid #048BA8;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 8px 24px rgba(4, 139, 168, 0.2), 0 4px 8px rgba(0, 0, 0, 0.1);
+  z-index: 999999;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 14px;
+  min-width: 320px;
+  max-width: 420px;
+  backdrop-filter: blur(10px);
+}
+
+.pii-suggestion-popup strong {
+  color: #048BA8;
+}
+
+.pii-suggestion-popup .pii-value-highlight {
+  background: #FBBF24;
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid #F59E0B;
+}
+
+.pii-suggestion-popup .pii-redaction-preview {
+  background: #22D3EE;
+  color: black;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-weight: bold;
+}
+
+.pii-suggestion-popup button {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-weight: 600;
+  border: none;
+  padding: 10px 18px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.2s ease;
+}
+
+.pii-suggestion-popup button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.2);
+}
+
+.pii-suggestion-popup #reject-btn,
+.pii-suggestion-popup #reject-overlay-btn {
+  background-color: #22D3EE;
+  color: black;
+}
+
+.pii-suggestion-popup #reject-btn:hover,
+.pii-suggestion-popup #reject-overlay-btn:hover {
+  background-color: #0891b2;
+  color: white;
+}
+
+.pii-suggestion-popup #accept-btn,
+.pii-suggestion-popup #accept-overlay-btn {
+  background-color: #048BA8;
+  color: white;
+}
+
+.pii-suggestion-popup #accept-btn:hover,
+.pii-suggestion-popup #accept-overlay-btn:hover {
+  background-color: #037a94;
+}
