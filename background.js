@@ -1,7 +1,7 @@
 // Background service worker for PII Detection Extension
 // This handles backend API requests to avoid CORS issues
 
-const BACKEND_BASE_URL = 'https://lucky-coffee-somerset-collectible.trycloudflare.com';
+const BACKEND_BASE_URL = 'https://settled-tribes-gray-resume.trycloudflare.com';
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'checkHealth') {

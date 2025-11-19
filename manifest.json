@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "PII EXtension LOCAL + GPU)",
-  "version": "1.0",
-  "description": "Google Docs üzerinde PII tespiti yapar ve vurgular.",
+  "name": "PII Extension with GPU Connection",
+  "version": "3.0",
+  "description": "Google Docs üzerinde PII tespitinde gpu gerektiren büyük dil modelleri kullanır..",
   
   "permissions": [
     "storage" 

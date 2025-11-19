@@ -26,46 +26,78 @@ const suggestionStates = new Map(); // Store accept/reject decisions
 // Current selected model for PII detection
 let currentModel = 'presidio'; // Default model (now using real Presidio backend)
 
+const MODEL_STORAGE_KEY = 'piiModelKey';
+let backendModels = [];
+
 // Backend API configuration
-const BACKEND_API_URL = 'https://lucky-coffee-somerset-collectible.trycloudflare.com/detect-pii';
-const BACKEND_HEALTH_URL = 'https://lucky-coffee-somerset-collectible.trycloudflare.com//health';
+const BACKEND_BASE_URL = 'https://settled-tribes-gray-resume.trycloudflare.com';
+const BACKEND_API_URL = `${BACKEND_BASE_URL}/detect-pii`;
+const BACKEND_HEALTH_URL = `${BACKEND_BASE_URL}/health`;
 // Model configurations with different mock data sets
+const MODEL_AUTO = 'auto';
+
+const DEFAULT_MODEL_KEYS = [
+    'piranha',
+    'presidio',
+    'ai4privacy',
+    'bdmbz',
+    'dbmdz/bert-large-cased-finetuned-conll03-english',
+    'nemo'
+];
+
 const MODEL_CONFIGS = {
     piranha: {
-        name: " Piranha",
+        name: "Piranha",
         description: "Fast and aggressive PII detection",
         accuracy: "High"
     },
     presidio: {
-        name: " Presidio", 
+        name: "Presidio", 
         description: "Microsoft's PII detection engine",
         accuracy: "Very High"
     },
     ai4privacy: {
-        name: " AI4Privacy",
+        name: "AI4Privacy",
         description: "Privacy-focused detection model",
         accuracy: "High"
     },
     bdmbz: {
-        name: " BDMBZ",
+        name: "BDMBZ",
         description: "Lightning-fast detection",
         accuracy: "Medium"
     },
+    "dbmdz/bert-large-cased-finetuned-conll03-english": {
+        name: "dbmdz/bert-large-cased-finetuned-conll03-english",
+        description: "HuggingFace NER model",
+        accuracy: "High"
+    },
     nemo: {
-        name: " NEMO",
+        name: "NEMO",
         description: "Precision-targeted detection",
         accuracy: "Very High"
     },
     auto: {
-        name: " Auto Select",
+        name: "Auto Select",
         description: "Adaptive selector",
         accuracy: "Dynamic"
     }
 };
 
+const MODEL_ICON_MAP = {
+    [MODEL_AUTO]: '🤖',
+    presidio: '🛡️',
+    ai4privacy: '🔒',
+    piranha: '🐟',
+    bdmbz: '⚡',
+    nemo: '🎯',
+    "dbmdz/bert-large-cased-finetuned-conll03-english": '⚡'
+};
+
 const MODE_CONTROL = 'control';
 const MODE_AGENT = 'agent';
-const MODEL_AUTO = 'auto';
+
+const MODEL_SELECT_ID = 'pii-model-select';
+const MODEL_STATUS_ID = 'pii-model-status';
 let extensionMode = localStorage.getItem('pii-extension-mode') === MODE_AGENT ? MODE_AGENT : MODE_CONTROL;
 let agentPipelineState = {
     running: false,
@@ -77,6 +109,241 @@ let lastAutoReason = '';
 
 const INFO_POPUP_STORAGE_KEY = 'pii-info-popup-hidden';
 const INFO_POPUP_AUTO_FLAG = '__piiInfoPopupAutoShown';
+
+function getModelIcon(modelKey) {
+    return MODEL_ICON_MAP[modelKey] || '';
+}
+
+function getBackendModelByKey(modelKey) {
+    if (!modelKey || !backendModels?.length) return null;
+    return backendModels.find(model => model.key === modelKey) || null;
+}
+
+function getModelDisplayName(modelKey) {
+    if (!modelKey) {
+        return 'Unknown Model';
+    }
+    const backendModel = getBackendModelByKey(modelKey);
+    const config = MODEL_CONFIGS[modelKey];
+    const baseName = backendModel?.name || config?.name || modelKey;
+    return baseName.trim();
+}
+
+function formatModelOptionLabel(modelKey, { includeCurrentSuffix = false } = {}) {
+    const icon = getModelIcon(modelKey);
+    const baseName = modelKey === MODEL_AUTO
+        ? (MODEL_CONFIGS[MODEL_AUTO]?.name || 'Auto Select')
+        : getModelDisplayName(modelKey);
+    const text = icon ? `${icon} ${baseName}` : baseName;
+    return includeCurrentSuffix ? `${text} (Current)` : text;
+}
+
+function getFallbackModelList() {
+    return DEFAULT_MODEL_KEYS.map(key => ({
+        key,
+        name: MODEL_CONFIGS[key]?.name || key
+    }));
+}
+
+function getRenderableModels() {
+    if (backendModels && backendModels.length > 0) {
+        return backendModels;
+    }
+    return getFallbackModelList();
+}
+
+function normalizeBackendModels(rawModels) {
+    if (!Array.isArray(rawModels)) {
+        return [];
+    }
+
+    const normalized = rawModels.map(model => {
+        if (!model) {
+            return null;
+        }
+
+        if (typeof model === 'string') {
+            return {
+                key: model,
+                name: MODEL_CONFIGS[model]?.name || model,
+                builtin: false
+            };
+        }
+
+        const key = model.key || model.name || model.id;
+        if (!key) {
+            return null;
+        }
+
+        return {
+            ...model,
+            key,
+            name: model.name || MODEL_CONFIGS[key]?.name || key
+        };
+    }).filter(Boolean);
+
+    const unique = [];
+    const seen = new Set();
+    normalized.forEach(model => {
+        if (!seen.has(model.key)) {
+            seen.add(model.key);
+            unique.push(model);
+        }
+    });
+    return unique;
+}
+
+function populateModelSelectOptions(selectedValue, targetSelect) {
+    const modelSelect = targetSelect || document.getElementById(MODEL_SELECT_ID);
+    if (!modelSelect) return;
+
+    const models = getRenderableModels();
+    const fragment = document.createDocumentFragment();
+
+    const autoOption = document.createElement('option');
+    autoOption.value = MODEL_AUTO;
+    autoOption.textContent = formatModelOptionLabel(MODEL_AUTO);
+    fragment.appendChild(autoOption);
+
+    const seenKeys = new Set();
+    models.forEach(model => {
+        if (!model?.key || seenKeys.has(model.key)) {
+            return;
+        }
+        seenKeys.add(model.key);
+        const option = document.createElement('option');
+        option.value = model.key;
+        option.textContent = formatModelOptionLabel(model.key);
+        fragment.appendChild(option);
+    });
+
+    modelSelect.innerHTML = '';
+    modelSelect.appendChild(fragment);
+
+    if (selectedValue) {
+        modelSelect.value = selectedValue;
+    } else if (currentModel) {
+        modelSelect.value = currentModel;
+    }
+
+    Array.from(modelSelect.options).forEach(option => {
+        const isCurrent = option.value === modelSelect.value;
+        if (option.value === MODEL_AUTO) {
+            option.textContent = formatModelOptionLabel(option.value, { includeCurrentSuffix: isCurrent });
+        } else {
+            option.textContent = formatModelOptionLabel(option.value, { includeCurrentSuffix: isCurrent });
+        }
+    });
+}
+
+function updateModelStatusIndicator(modelKey) {
+    const statusEl = document.getElementById(MODEL_STATUS_ID);
+    if (!statusEl) return;
+
+    if (!modelKey) {
+        statusEl.textContent = 'Last run: pending...';
+        return;
+    }
+
+    const label = getModelDisplayName(modelKey);
+    statusEl.textContent = `Last run: ${label}`;
+}
+
+function saveModelSelection(modelKey) {
+    try {
+        localStorage.setItem(MODEL_STORAGE_KEY, modelKey);
+    } catch (error) {
+        console.warn('[PII Extension] Unable to persist model selection to localStorage:', error);
+    }
+
+    if (chrome?.storage?.sync) {
+        try {
+            chrome.storage.sync.set({ [MODEL_STORAGE_KEY]: modelKey }, () => {
+                if (chrome.runtime.lastError) {
+                    console.warn('[PII Extension] chrome.storage.sync set error:', chrome.runtime.lastError.message);
+                }
+            });
+        } catch (error) {
+            console.warn('[PII Extension] Unable to persist model selection to chrome.storage.sync:', error);
+        }
+    }
+}
+
+function loadModelSelectionFromLocal() {
+    try {
+        const value = localStorage.getItem(MODEL_STORAGE_KEY);
+        return value || null;
+    } catch (error) {
+        console.warn('[PII Extension] Unable to read model selection from localStorage:', error);
+        return null;
+    }
+}
+
+function readModelSelectionFromChromeSync() {
+    return new Promise(resolve => {
+        if (!chrome?.storage?.sync) {
+            resolve(null);
+            return;
+        }
+        try {
+            chrome.storage.sync.get([MODEL_STORAGE_KEY], result => {
+                if (chrome.runtime.lastError) {
+                    console.warn('[PII Extension] chrome.storage.sync get error:', chrome.runtime.lastError.message);
+                    resolve(null);
+                    return;
+                }
+                resolve(result?.[MODEL_STORAGE_KEY] || null);
+            });
+        } catch (error) {
+            console.warn('[PII Extension] Unable to access chrome.storage.sync:', error);
+            resolve(null);
+        }
+    });
+}
+
+async function getStoredModelSelection(defaultModelKey) {
+    const syncValue = await readModelSelectionFromChromeSync();
+    if (syncValue) {
+        return syncValue;
+    }
+    const localValue = loadModelSelectionFromLocal();
+    if (localValue) {
+        return localValue;
+    }
+    return defaultModelKey;
+}
+
+async function refreshBackendModels() {
+    try {
+        console.log('[PII Extension] Refreshing backend models...');
+        const response = await fetch(BACKEND_HEALTH_URL, { method: 'GET' });
+        if (!response.ok) {
+            throw new Error(`Health endpoint responded with ${response.status}`);
+        }
+        const data = await response.json();
+        backendModels = normalizeBackendModels(data?.models);
+        if (!backendModels.length) {
+            backendModels = getFallbackModelList();
+        }
+
+        const defaultModel = data?.default_model || currentModel || 'presidio';
+        const storedSelection = await getStoredModelSelection(defaultModel);
+        currentModel = storedSelection || defaultModel;
+        lastResolvedModel = currentModel === MODEL_AUTO ? defaultModel : currentModel;
+
+        populateModelSelectOptions(currentModel);
+        updateModelStatusIndicator(lastResolvedModel || currentModel);
+        console.log('[PII Extension] Backend models loaded:', backendModels.map(m => m.key));
+    } catch (error) {
+        console.warn('[PII Extension] Failed to load backend models, using fallback list:', error);
+        const storedSelection = await getStoredModelSelection(currentModel);
+        if (storedSelection) {
+            currentModel = storedSelection;
+        }
+        populateModelSelectOptions(currentModel);
+        updateModelStatusIndicator(lastResolvedModel || currentModel);
+    }
+}
 
 function analyzePromptForModel(promptText) {
     const text = (promptText || '').trim();
@@ -141,11 +408,6 @@ function analyzePromptForModel(promptText) {
         model: 'presidio',
         reason: 'Balanced prompt – defaulting to Presidio for reliable coverage.'
     };
-}
-
-function getModelDisplayName(modelKey) {
-    const config = MODEL_CONFIGS[modelKey];
-    return (config?.name || modelKey).trim();
 }
 
 function getLastModelName() {
@@ -1267,13 +1529,18 @@ async function detectPIIFromBackend(text, model = 'presidio') {
                 reject(new Error("Request timed out. The text might be too long or the server is slow."));
             }, 30000);
             
+            const payload = {
+                action: 'detectPII',
+                text: text,
+                language: 'en'
+            };
+
+            if (model && model !== MODEL_AUTO) {
+                payload.model = model;
+            }
+            
             chrome.runtime.sendMessage(
-                {
-                    action: 'detectPII',
-                    text: text,
-                    language: 'en',
-                    model: model
-                },
+                payload,
                 (response) => {
                     clearTimeout(timeout);
                     
@@ -1379,7 +1646,7 @@ function injectScanButton() {
     modelSelectContainer.id = "pii-model-container";
 
     const modelLabel = document.createElement("label");
-    modelLabel.htmlFor = "pii-model-select";
+    modelLabel.htmlFor = MODEL_SELECT_ID;
     modelLabel.textContent = "Model:";
     modelLabel.style.fontSize = "12px";
     modelLabel.style.color = "#048BA8";
@@ -1388,20 +1655,21 @@ function injectScanButton() {
     modelLabel.style.display = "block";
 
     const modelSelect = document.createElement("select");
-    modelSelect.id = "pii-model-select";
-    modelSelect.innerHTML = `
-        <option value="auto">🤖 Auto Select</option>
-        <option value="piranha">🐟 Piranha</option>
-        <option value="presidio">🛡️ Presidio</option>
-        <option value="ai4privacy">🔒 AI4Privacy</option>
-        <option value="bdmbz">⚡ BDMBZ</option>
-        <option value="nemo">🎯 NEMO</option>
-    `;
-    modelSelect.value = currentModel;
-    modelSelect.onchange = handleModelChange;
+    modelSelect.id = MODEL_SELECT_ID;
+    modelSelect.addEventListener('change', handleModelChange);
+    
+    const modelStatus = document.createElement("div");
+    modelStatus.id = MODEL_STATUS_ID;
+    modelStatus.style.fontSize = "11px";
+    modelStatus.style.color = "#0f172a";
+    modelStatus.style.marginTop = "4px";
+    modelStatus.textContent = "Last run: pending...";
 
     modelSelectContainer.appendChild(modelLabel);
     modelSelectContainer.appendChild(modelSelect);
+    modelSelectContainer.appendChild(modelStatus);
+    populateModelSelectOptions(null, modelSelect);
+    updateModelStatusIndicator(lastResolvedModel || currentModel);
 
 	const modeContainer = document.createElement('div');
 	modeContainer.id = 'pii-mode-toggle';
@@ -3756,39 +4024,37 @@ function handleModelChange(event) {
     const selectedModel = event.target.value;
     const previousModel = currentModel;
     currentModel = selectedModel;
+    saveModelSelection(selectedModel);
     
     console.log(`Model changed from ${previousModel} to ${selectedModel}`);
     
     // Update the dropdown text to show current model
-    const modelSelect = document.getElementById('pii-model-select');
+    const modelSelect = document.getElementById(MODEL_SELECT_ID);
     if (modelSelect) {
-        // Update the selected option text to show "(Current)"
         Array.from(modelSelect.options).forEach(option => {
-            const modelKey = option.value;
-            const config = MODEL_CONFIGS[modelKey];
-            if (modelKey === selectedModel) {
-                option.textContent = `${config.name} (Current)`;
-            } else {
-                option.textContent = config.name;
-            }
+            const isCurrent = option.value === selectedModel;
+            option.textContent = formatModelOptionLabel(option.value, { includeCurrentSuffix: isCurrent });
         });
     }
     
     const modelConfig = MODEL_CONFIGS[selectedModel];
-    if (modelConfig) {
-        if (selectedModel === MODEL_AUTO) {
-            const { text } = getCurrentPromptText(detectPageType());
-            if (text.trim()) {
-                const autoPreview = analyzePromptForModel(text);
-                const modelName = getModelDisplayName(autoPreview.model);
-                showAutoModelPopup(modelName, autoPreview.reason, 'Auto Preview');
-            } else {
-                showAutoModelPopup(modelConfig.name.trim(), 'We will inspect each prompt and pick the best detector automatically.', 'Auto Select Enabled');
-            }
+    if (selectedModel === MODEL_AUTO) {
+        const { text } = getCurrentPromptText(detectPageType());
+        if (text.trim()) {
+            const autoPreview = analyzePromptForModel(text);
+            const modelName = getModelDisplayName(autoPreview.model);
+            showAutoModelPopup(modelName, autoPreview.reason, 'Auto Preview');
+        } else if (modelConfig) {
+            showAutoModelPopup(modelConfig.name.trim(), 'We will inspect each prompt and pick the best detector automatically.', 'Auto Select Enabled');
         } else {
-            const reason = `${modelConfig.description} • Accuracy: ${modelConfig.accuracy}`;
-            showAutoModelPopup(modelConfig.name.trim(), reason, `${modelConfig.name.trim()} Selected`);
+            showAutoModelPopup('Auto Select', 'We will inspect each prompt and pick the best detector automatically.', 'Auto Select Enabled');
         }
+    } else if (modelConfig) {
+        const reason = `${modelConfig.description} • Accuracy: ${modelConfig.accuracy}`;
+        showAutoModelPopup(modelConfig.name.trim(), reason, `${modelConfig.name.trim()} Selected`);
+    } else {
+        const humanName = getModelDisplayName(selectedModel);
+        showAutoModelPopup(humanName, 'Custom backend model selected.', `${humanName} Selected`);
     }
     
     // Clear existing highlights since we're switching models
@@ -3897,6 +4163,7 @@ async function handleScanClick() {
           "detected_entities": [],
           "total_entities": 0,
           "model_used": resolvedModel,
+          "model_key": resolvedModel,
           "confidence_threshold": 0.8
         };
         // Alert removed per user request
@@ -3912,6 +4179,7 @@ async function handleScanClick() {
         "detected_entities": [],
         "total_entities": 0,
         "model_used": resolvedModel,
+        "model_key": resolvedModel,
         "confidence_threshold": 0.8
       };
       // Alert removed per user request
@@ -3920,6 +4188,16 @@ async function handleScanClick() {
       // Restore button
       scanButton.innerHTML = originalButtonText;
       scanButton.disabled = false;
+    }
+
+    const backendModelKey = piiResults?.model_key || piiResults?.model_used || resolvedModel;
+    if (backendModelKey) {
+        lastResolvedModel = backendModelKey;
+        console.log(`[PII Extension] Backend used model "${backendModelKey}" for this scan.`);
+        updateModelStatusIndicator(backendModelKey);
+    } else {
+        lastResolvedModel = resolvedModel;
+        updateModelStatusIndicator(resolvedModel);
     }
     
     // Process results and highlight
@@ -6330,6 +6608,7 @@ function initializePiiDetector() {
     injectScanButton();
     // Setup message send detection for chat interfaces
     setupMessageSendDetection();
+    refreshBackendModels();
   } else {
     // Wait for body to be available
     const observer = new MutationObserver((mutations, obs) => {
@@ -6337,6 +6616,7 @@ function initializePiiDetector() {
         injectScanButton();
         // Setup message send detection for chat interfaces
         setupMessageSendDetection();
+        refreshBackendModels();
         obs.disconnect();
       }
     });
