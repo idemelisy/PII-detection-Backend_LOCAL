@@ -228,7 +228,9 @@ async function getStoredModelSelection(defaultModelKey) {
 async function refreshBackendModels() {
     try {
         console.log('[PII Extension] Refreshing backend models...');
-        const response = await fetch(config.BACKEND_HEALTH_URL, { method: 'GET' });
+        // Use getter function to get current backend URL (may have been updated from file)
+        const healthUrl = window.PIIExtension.getBackendHealthUrl ? window.PIIExtension.getBackendHealthUrl() : config.BACKEND_HEALTH_URL;
+        const response = await fetch(healthUrl, { method: 'GET' });
         if (!response.ok) {
             throw new Error(`Health endpoint responded with ${response.status}`);
         }

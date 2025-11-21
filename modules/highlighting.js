@@ -629,47 +629,189 @@ function highlightPiiForChatGPT(entities) {
                 return;
             }
             
+            // Filter out single character entities (likely false positives)
+            const trimmedValue = entityValue.trim();
+            if (trimmedValue.length <= 1) {
+                console.warn(`[PII Extension] Skipping single-character entity: "${entityValue}" (likely false positive)`);
+                return;
+            }
+            
             const entityType = entity.type;
             
             // Normalize both text and entity value for better matching
             const normalizedText = originalText.normalize('NFC');
-            const normalizedEntityValue = entityValue.normalize('NFC');
+            // Trim whitespace from entity value for matching (but keep original for display)
+            const normalizedEntityValue = trimmedValue.normalize('NFC');
             
             // Use multiple search strategies for robustness
             let occurrences = [];
             
-            // Strategy 1: Exact case-insensitive search
-            const lowerText = normalizedText.toLowerCase();
-            const lowerEntityValue = normalizedEntityValue.toLowerCase();
-            let searchIndex = 0;
+            // Strategy 0: Use backend's original offsets FIRST (most reliable)
+            // Backend knows the exact positions in the text it analyzed
+            // IMPORTANT: If backend provides offsets, we ONLY use that specific occurrence
+            // to avoid matching other occurrences of the same text (e.g., "Ceyda Kaya" in name vs email)
+            const hasBackendOffsets = entity.start !== undefined && entity.end !== undefined;
             
-            while (true) {
-                const foundIndex = lowerText.indexOf(lowerEntityValue, searchIndex);
-                if (foundIndex === -1) break;
+            if (hasBackendOffsets) {
+                const backendStart = entity.start;
+                const backendEnd = entity.end;
                 
-                // Get the actual text at this position
-                const actualText = normalizedText.substring(foundIndex, foundIndex + normalizedEntityValue.length);
-                
-                // Verify it matches (case-insensitive, normalized)
-                if (actualText.toLowerCase() === lowerEntityValue) {
-                    // Check if this position is already redacted
-                    if (!textProcessing.isRedactedText(normalizedText, foundIndex, foundIndex + normalizedEntityValue.length)) {
-                        // Check if we already have this occurrence (avoid duplicates)
-                        const isDuplicate = occurrences.some(occ => 
-                            occ.start === foundIndex && occ.end === foundIndex + normalizedEntityValue.length
-                        );
+                if (backendStart >= 0 && backendEnd <= normalizedText.length && backendEnd > backendStart) {
+                    const textAtBackendOffset = normalizedText.substring(backendStart, backendEnd);
+                    const trimmedTextAtOffset = textAtBackendOffset.trim();
+                    
+                    // Check if the text at backend offset matches (case-insensitive, trimmed)
+                    // Allow for whitespace differences between backend and current text
+                    if (trimmedTextAtOffset.toLowerCase() === normalizedEntityValue.toLowerCase() || 
+                        textAtBackendOffset.toLowerCase().includes(normalizedEntityValue.toLowerCase()) ||
+                        normalizedEntityValue.toLowerCase().includes(trimmedTextAtOffset.toLowerCase())) {
                         
-                        if (!isDuplicate) {
-                            occurrences.push({
-                                start: foundIndex,
-                                end: foundIndex + normalizedEntityValue.length,
-                                value: actualText
-                            });
+                        // Additional check: If this is a PERSON entity, make sure it's not inside an email address
+                        // Email addresses should be detected as EMAIL type, not PERSON
+                        let isInsideEmail = false;
+                        if (entityType === 'PERSON' || entityType === 'NAME') {
+                            // Check if the position is within an email pattern (text@domain)
+                            // Look for @ symbol near the entity position
+                            const contextStart = Math.max(0, backendStart - 100);
+                            const contextEnd = Math.min(normalizedText.length, backendEnd + 100);
+                            const context = normalizedText.substring(contextStart, contextEnd);
+                            
+                            // Find all email patterns in the context
+                            const emailPattern = /[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+                            const emailMatches = [...context.matchAll(emailPattern)];
+                            
+                            for (const emailMatch of emailMatches) {
+                                // Calculate absolute positions in the full text
+                                const emailStartInText = contextStart + emailMatch.index;
+                                const emailEndInText = emailStartInText + emailMatch[0].length;
+                                
+                                // Check if our entity is inside this email
+                                if (backendStart >= emailStartInText && backendEnd <= emailEndInText) {
+                                    isInsideEmail = true;
+                                    console.warn(`[PII Extension] Skipping PERSON entity "${trimmedValue}" at ${backendStart}-${backendEnd} - appears to be inside email address "${emailMatch[0]}"`);
+                                    break;
+                                }
+                            }
                         }
+                        
+                        // Backend offset is valid - use ONLY this occurrence (if not inside email)
+                        if (!isInsideEmail && !textProcessing.isRedactedText(normalizedText, backendStart, backendEnd)) {
+                            occurrences.push({
+                                start: backendStart,
+                                end: backendEnd,
+                                value: textAtBackendOffset.trim() || textAtBackendOffset,
+                                fromBackend: true
+                            });
+                            console.log(`[PII Extension] Found PII "${trimmedValue}" using backend offset ${backendStart}-${backendEnd}`);
+                        }
+                    } else {
+                        // Backend offset doesn't match - text might have changed, log for debugging
+                        console.warn(`[PII Extension] Backend offset mismatch for "${trimmedValue}": expected at ${backendStart}-${backendEnd}, found "${textAtBackendOffset}" (will try search near that position)`);
                     }
                 }
+            }
+            
+            // Strategy 1: Exact case-insensitive search (only if backend offsets didn't work or weren't provided)
+            // If backend provided offsets but they didn't match, search near that position first
+            if (occurrences.length === 0) {
+                const lowerText = normalizedText.toLowerCase();
+                const lowerEntityValue = normalizedEntityValue.toLowerCase();
                 
-                searchIndex = foundIndex + 1;
+                // If backend provided offsets but they didn't match, search near that position first (within ±30 chars)
+                let searchStartIndex = 0;
+                let searchEndIndex = normalizedText.length;
+                let preferNearBackend = false;
+                
+                if (hasBackendOffsets && entity.start !== undefined) {
+                    const backendStart = entity.start;
+                    searchStartIndex = Math.max(0, backendStart - 30);
+                    searchEndIndex = Math.min(normalizedText.length, backendStart + 30 + normalizedEntityValue.length);
+                    preferNearBackend = true;
+                }
+                
+                let searchIndex = searchStartIndex;
+                let bestMatch = null;
+                let bestDistance = Infinity;
+                
+                while (true) {
+                    const foundIndex = lowerText.indexOf(lowerEntityValue, searchIndex);
+                    if (foundIndex === -1 || foundIndex >= searchEndIndex) break;
+                    
+                    // Get the actual text at this position
+                    const actualText = normalizedText.substring(foundIndex, foundIndex + normalizedEntityValue.length);
+                    
+                    // Verify it matches (case-insensitive, normalized)
+                    if (actualText.toLowerCase() === lowerEntityValue) {
+                        // Check if this position is already redacted
+                        if (!textProcessing.isRedactedText(normalizedText, foundIndex, foundIndex + normalizedEntityValue.length)) {
+                            // If backend provided offsets, prefer the match closest to that position
+                            if (preferNearBackend && entity.start !== undefined) {
+                                const distanceFromBackend = Math.abs(foundIndex - entity.start);
+                                if (distanceFromBackend < bestDistance) {
+                                    bestMatch = {
+                                        start: foundIndex,
+                                        end: foundIndex + normalizedEntityValue.length,
+                                        value: actualText,
+                                        distance: distanceFromBackend
+                                    };
+                                    bestDistance = distanceFromBackend;
+                                }
+                            } else {
+                                // No backend offsets - add all matches
+                                const isDuplicate = occurrences.some(occ => 
+                                    occ.start === foundIndex && occ.end === foundIndex + normalizedEntityValue.length
+                                );
+                                
+                                if (!isDuplicate) {
+                                    occurrences.push({
+                                        start: foundIndex,
+                                        end: foundIndex + normalizedEntityValue.length,
+                                        value: actualText
+                                    });
+                                }
+                            }
+                        }
+                    }
+                    
+                    searchIndex = foundIndex + 1;
+                }
+                
+                // If we found a match near backend offset, use only that one
+                if (bestMatch && preferNearBackend) {
+                    occurrences.push({
+                        start: bestMatch.start,
+                        end: bestMatch.end,
+                        value: bestMatch.value
+                    });
+                    console.log(`[PII Extension] Found PII "${trimmedValue}" near backend offset (distance: ${bestMatch.distance} chars)`);
+                } else if (occurrences.length === 0 && !preferNearBackend) {
+                    // If no backend offsets and no matches found, search entire text
+                    searchIndex = 0;
+                    while (true) {
+                        const foundIndex = lowerText.indexOf(lowerEntityValue, searchIndex);
+                        if (foundIndex === -1) break;
+                        
+                        const actualText = normalizedText.substring(foundIndex, foundIndex + normalizedEntityValue.length);
+                        
+                        if (actualText.toLowerCase() === lowerEntityValue) {
+                            if (!textProcessing.isRedactedText(normalizedText, foundIndex, foundIndex + normalizedEntityValue.length)) {
+                                const isDuplicate = occurrences.some(occ => 
+                                    occ.start === foundIndex && occ.end === foundIndex + normalizedEntityValue.length
+                                );
+                                
+                                if (!isDuplicate) {
+                                    occurrences.push({
+                                        start: foundIndex,
+                                        end: foundIndex + normalizedEntityValue.length,
+                                        value: actualText
+                                    });
+                                }
+                            }
+                        }
+                        
+                        searchIndex = foundIndex + 1;
+                    }
+                }
             }
             
             // Strategy 2: If not found, try regex search (more flexible)
@@ -695,29 +837,6 @@ function highlightPiiForChatGPT(entities) {
                     });
                 } catch (e) {
                     console.warn(`[PII Extension] Regex search failed for "${entityValue}":`, e);
-                }
-            }
-            
-            // Strategy 3: If still not found, try using backend's original offsets as fallback
-            if (occurrences.length === 0 && entity.start !== undefined && entity.end !== undefined) {
-                const backendStart = entity.start;
-                const backendEnd = entity.end;
-                
-                if (backendStart >= 0 && backendEnd <= normalizedText.length && backendEnd > backendStart) {
-                    const textAtBackendOffset = normalizedText.substring(backendStart, backendEnd);
-                    
-                    // Check if the text at backend offset matches (case-insensitive)
-                    if (textAtBackendOffset.toLowerCase() === lowerEntityValue) {
-                        // Backend offset is still valid
-                        if (!textProcessing.isRedactedText(normalizedText, backendStart, backendEnd)) {
-                            occurrences.push({
-                                start: backendStart,
-                                end: backendEnd,
-                                value: textAtBackendOffset
-                            });
-                            console.log(`[PII Extension] Found PII "${entityValue}" using backend offset ${backendStart}-${backendEnd}`);
-                        }
-                    }
                 }
             }
             

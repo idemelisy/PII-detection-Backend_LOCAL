@@ -19,6 +19,13 @@
     "service_worker": "background.js"
   },
 
+  "web_accessible_resources": [
+    {
+      "resources": ["backend-url.txt"],
+      "matches": ["<all_urls>"]
+    }
+  ],
+
   "content_scripts": [
     {
       "matches": [

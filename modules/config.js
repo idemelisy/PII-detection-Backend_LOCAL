@@ -22,9 +22,58 @@ const MODEL_STORAGE_KEY = 'piiModelKey';
 let backendModels = [];
 
 // Backend API configuration
-const BACKEND_ORIGIN = 'https://settled-tribes-gray-resume.trycloudflare.com';
-const BACKEND_API_URL = `${BACKEND_ORIGIN}/detect-pii`;
-const BACKEND_HEALTH_URL = `${BACKEND_ORIGIN}/health`;
+// Will be loaded from backend-url.txt file (see initialization below)
+let BACKEND_ORIGIN = 'https://settled-tribes-gray-resume.trycloudflare.com'; // Default fallback
+let BACKEND_API_URL = `${BACKEND_ORIGIN}/detect-pii`;
+let BACKEND_HEALTH_URL = `${BACKEND_ORIGIN}/health`;
+
+// Load backend URL from chrome.storage (populated by background.js)
+async function loadBackendUrlFromStorage() {
+  try {
+    if (chrome.storage && chrome.storage.local) {
+      const result = await new Promise((resolve) => {
+        chrome.storage.local.get(['backendUrl'], resolve);
+      });
+      if (result.backendUrl) {
+        BACKEND_ORIGIN = result.backendUrl;
+        BACKEND_API_URL = `${BACKEND_ORIGIN}/detect-pii`;
+        BACKEND_HEALTH_URL = `${BACKEND_ORIGIN}/health`;
+        // Update exported config object
+        window.PIIExtension.config.BACKEND_ORIGIN = BACKEND_ORIGIN;
+        window.PIIExtension.config.BACKEND_API_URL = BACKEND_API_URL;
+        window.PIIExtension.config.BACKEND_HEALTH_URL = BACKEND_HEALTH_URL;
+        console.log('[PII Extension] Loaded backend URL from storage:', BACKEND_ORIGIN);
+      } else {
+        // Try to load directly from file as fallback
+        try {
+          const url = chrome.runtime.getURL('backend-url.txt');
+          const response = await fetch(url);
+          if (response.ok) {
+            const text = await response.text();
+            const urlFromFile = text.trim();
+            if (urlFromFile && urlFromFile.startsWith('http')) {
+              BACKEND_ORIGIN = urlFromFile;
+              BACKEND_API_URL = `${BACKEND_ORIGIN}/detect-pii`;
+              BACKEND_HEALTH_URL = `${BACKEND_ORIGIN}/health`;
+              // Update exported config object
+              window.PIIExtension.config.BACKEND_ORIGIN = BACKEND_ORIGIN;
+              window.PIIExtension.config.BACKEND_API_URL = BACKEND_API_URL;
+              window.PIIExtension.config.BACKEND_HEALTH_URL = BACKEND_HEALTH_URL;
+              console.log('[PII Extension] Loaded backend URL from file:', BACKEND_ORIGIN);
+            }
+          }
+        } catch (fileError) {
+          console.warn('[PII Extension] Could not load backend-url.txt, using default URL');
+        }
+      }
+    }
+  } catch (error) {
+    console.warn('[PII Extension] Could not load backend URL from storage, using default:', error);
+  }
+}
+
+// Load backend URL immediately (but don't block - it's async)
+loadBackendUrlFromStorage();
 
 // Model configurations with different mock data sets
 const MODEL_AUTO = 'auto';
@@ -102,6 +151,11 @@ let lastAutoReason = '';
 
 const INFO_POPUP_STORAGE_KEY = 'pii-info-popup-hidden';
 const INFO_POPUP_AUTO_FLAG = '__piiInfoPopupAutoShown';
+
+// Helper function to get current backend URL (for dynamic access)
+window.PIIExtension.getBackendOrigin = () => BACKEND_ORIGIN;
+window.PIIExtension.getBackendApiUrl = () => BACKEND_API_URL;
+window.PIIExtension.getBackendHealthUrl = () => BACKEND_HEALTH_URL;
 
 // Export to global namespace
 window.PIIExtension.config = {
