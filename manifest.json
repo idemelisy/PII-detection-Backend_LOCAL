@@ -30,7 +30,19 @@
         "http://*/*"
       ],
       "css": ["style.css"],
-      "js": ["content.js"]
+      "js": [
+        "modules/config.js",
+        "modules/models.js",
+        "modules/pageDetection.js",
+        "modules/textProcessing.js",
+        "modules/messageDetection.js",
+        "modules/api.js",
+        "modules/chatIntegration.js",
+        "modules/agent.js",
+        "modules/ui.js",
+        "modules/highlighting.js",
+        "content-modular.js"
+      ]
     }
   ]
 }
