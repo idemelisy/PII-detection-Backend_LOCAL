@@ -224,11 +224,6 @@ function toggleChatGPTSendButton(enabled) {
 
 function getCurrentPromptText(preDetectedPageType) {
     const pageType = preDetectedPageType || pageDetection.detectPageType();
-    const editor = textProcessing.findContentArea();
-    if (!editor) {
-        console.warn('[PII Extension] Editor not found while fetching prompt text');
-        return { text: '', editor: null, pageType };
-    }
 
     if (pageType === 'chatgpt' || pageType === 'gemini') {
         const textareaSelectors = [
@@ -312,9 +307,23 @@ function getCurrentPromptText(preDetectedPageType) {
 
         const normalized = rawText ? rawText.normalize('NFC') : '';
         console.log(`[PII Extension] Extracted ${normalized.length} chars from chat input`);
-        return { text: normalized, editor, pageType };
+        // Use textarea as editor for ChatGPT/Gemini
+        return { text: normalized, editor: textarea, pageType };
     }
 
+    // For other page types, try to use textProcessing module if available
+    const textProcessingModule = window.PIIExtension?.textProcessing;
+    let editor = null;
+    
+    if (textProcessingModule && textProcessingModule.findContentArea) {
+        editor = textProcessingModule.findContentArea();
+    }
+    
+    if (!editor) {
+        // Fallback: use document.body
+        editor = document.body;
+    }
+    
     const docText = editor.textContent || editor.innerText || '';
     const normalized = docText ? docText.normalize('NFC') : '';
     return { text: normalized, editor, pageType };

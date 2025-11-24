@@ -30,7 +30,7 @@ const MODEL_STORAGE_KEY = 'piiModelKey';
 let backendModels = [];
 
 // Backend API configuration
-const BACKEND_ORIGIN = 'https://settled-tribes-gray-resume.trycloudflare.com';
+const BACKEND_ORIGIN = 'https://naples-collect-industries-can.trycloudflare.com';
 const BACKEND_API_URL = `${BACKEND_ORIGIN}/detect-pii`;
 const BACKEND_HEALTH_URL = `${BACKEND_ORIGIN}/health`;
 // Model configurations with different mock data sets

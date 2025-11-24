@@ -31,12 +31,157 @@ if (!window.PIIExtension || !window.PIIExtension.ui) {
 
 const config = window.PIIExtension.config;
 const pageDetection = window.PIIExtension.pageDetection;
-const textProcessing = window.PIIExtension.textProcessing;
+// Safely access textProcessing module - may not be ready at module load time
+const getTextProcessing = () => window.PIIExtension?.textProcessing;
+const textProcessing = getTextProcessing(); // Try to get it at load time
 const chatIntegration = window.PIIExtension.chatIntegration;
 const api = window.PIIExtension.api;
 const models = window.PIIExtension.models;
 // Access ui lazily since it might not be ready yet
 const getUI = () => window.PIIExtension.ui;
+
+// Helper function to safely access textProcessing module
+function safeTextProcessing() {
+    return window.PIIExtension?.textProcessing || textProcessing;
+}
+
+// Helper function to safely check if text is redacted
+function safeIsRedactedText(text, start, end) {
+    const textProcessingModule = safeTextProcessing();
+    if (!textProcessingModule || !textProcessingModule.isRedactedText) {
+        // If module not available, assume text is not redacted
+        return false;
+    }
+    return textProcessingModule.isRedactedText(text, start, end);
+}
+
+// Helper function to safely generate suggestion ID
+function safeGenerateSuggestionId() {
+    const textProcessingModule = safeTextProcessing();
+    if (!textProcessingModule || !textProcessingModule.generateSuggestionId) {
+        // Fallback: generate a simple ID if module not available
+        return 'suggestion_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    }
+    return textProcessingModule.generateSuggestionId();
+}
+
+// Helper function to safely remove overlapping spans
+function safeRemoveOverlappingSpans(spans) {
+    const textProcessingModule = safeTextProcessing();
+    if (textProcessingModule && textProcessingModule.removeOverlappingSpans) {
+        return textProcessingModule.removeOverlappingSpans(spans);
+    }
+    
+    // Fallback: simple implementation to remove overlapping spans
+    if (!spans || spans.length === 0) return [];
+    
+    // Sort by start position, then by length (longest first) for same start
+    const sorted = [...spans].sort((a, b) => {
+        if (a.start !== b.start) {
+            return a.start - b.start;
+        }
+        // If same start, prefer longer span
+        return (b.end - b.start) - (a.end - a.start);
+    });
+    
+    const nonOverlapping = [];
+    for (const span of sorted) {
+        // Check if this span overlaps with any already added span
+        let overlaps = false;
+        for (const existing of nonOverlapping) {
+            // Check if spans overlap: one starts before the other ends
+            if (span.start < existing.end && span.end > existing.start) {
+                overlaps = true;
+                break;
+            }
+        }
+        
+        if (!overlaps) {
+            nonOverlapping.push(span);
+        }
+    }
+    
+    return nonOverlapping;
+}
+
+// Helper function to safely get redaction label
+function safeGetRedactionLabel(piiType) {
+    const textProcessingModule = safeTextProcessing();
+    if (textProcessingModule && textProcessingModule.getRedactionLabel) {
+        return textProcessingModule.getRedactionLabel(piiType);
+    }
+    
+    // Fallback: normalize PII type and create label
+    if (!piiType) return '[REDACTED]';
+    const normalized = String(piiType)
+        .trim()
+        .replace(/[^a-zA-Z0-9]+/g, '_')
+        .replace(/_+/g, '_')
+        .replace(/^_|_$/g, '')
+        .toUpperCase();
+    return normalized ? `[${normalized}]` : '[REDACTED]';
+}
+
+// Helper function to safely generate PII mapping ID
+function safeGeneratePIIMappingId() {
+    const textProcessingModule = safeTextProcessing();
+    if (textProcessingModule && textProcessingModule.generatePIIMappingId) {
+        return textProcessingModule.generatePIIMappingId();
+    }
+    
+    // Fallback: generate simple ID
+    return 'pii_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+}
+
+// Helper function to safely redact PII with offset tracking
+function safeRedactPIIWithOffsetTracking(text, spans, maskFor) {
+    const textProcessingModule = safeTextProcessing();
+    if (textProcessingModule && textProcessingModule.redactPIIWithOffsetTracking) {
+        return textProcessingModule.redactPIIWithOffsetTracking(text, spans, maskFor);
+    }
+    
+    // Fallback: simple redaction implementation
+    // Sort spans by start position in ascending order
+    const sortedSpans = [...spans].sort((a, b) => a.start - b.start);
+    
+    let redactedText = text;
+    let cumulativeDelta = 0;
+    const updatedSpans = [];
+    
+    sortedSpans.forEach(span => {
+        const mask = maskFor(span.entity);
+        const originalLength = span.end - span.start;
+        const lengthDiff = mask.length - originalLength;
+        
+        // Adjust start/end positions based on previous redactions
+        const adjustedStart = span.start + cumulativeDelta;
+        const adjustedEnd = span.end + cumulativeDelta;
+        
+        // Apply redaction at adjusted position
+        redactedText = redactedText.substring(0, adjustedStart) + 
+                      mask + 
+                      redactedText.substring(adjustedEnd);
+        
+        // Calculate new offsets
+        const newStart = adjustedStart;
+        const newEnd = adjustedStart + mask.length;
+        
+        updatedSpans.push({
+            start: newStart,
+            end: newEnd,
+            entity: span.entity,
+            maskedText: mask
+        });
+        
+        // Update cumulative delta for next iterations
+        cumulativeDelta += lengthDiff;
+    });
+    
+    return {
+        text: redactedText,
+        updatedSpans: updatedSpans
+    };
+}
 
 // Handles the Scan button click event
 async function handleScanClick() {
@@ -236,7 +381,12 @@ function highlightPiiInDocument(entities) {
     }
     
     // Original approach for other platforms
-    const editor = textProcessing.findContentArea();
+    const textProcessingModule = safeTextProcessing();
+    if (!textProcessingModule || !textProcessingModule.findContentArea) {
+        console.error('[PII Extension] textProcessing.findContentArea not available');
+        return;
+    }
+    const editor = textProcessingModule.findContentArea();
     if (!editor) {
         console.warn("Cannot highlight PII: Content area not found");
         return;
@@ -271,7 +421,7 @@ function highlightPiiInDocument(entities) {
         const regex = new RegExp(`(?<!<[^>]*)(${escapedValue})(?![^<]*>)`, 'gi');
         
         // Create the highlight HTML structure with suggestion functionality
-        const highlightHTML = `<span class="${config.HIGHLIGHT_CLASS}" data-pii-type="${entity.type}" data-pii-value="${entity.value}" data-suggestion-id="${textProcessing.generateSuggestionId()}">$1</span>`;
+        const highlightHTML = `<span class="${config.HIGHLIGHT_CLASS}" data-pii-type="${entity.type}" data-pii-value="${entity.value}" data-suggestion-id="${safeGenerateSuggestionId()}">$1</span>`;
         
         // Count matches before replacement
         const matches = currentHTML.match(regex);
@@ -611,8 +761,16 @@ function highlightPiiForChatGPT(entities) {
         console.log(`[PII Extension] Analyzing ${isGemini ? 'Gemini' : 'ChatGPT'} input field text for PII (${originalText.length} characters, normalized)...`);
         
         // First, filter out any PII that overlaps with already-redacted text
-        const filteredEntities = textProcessing.filterRedactedPII(entities, originalText);
-        console.log(`[PII Extension] Filtered ${entities.length - filteredEntities.length} PII entities that overlap with redacted text`);
+        // Safely access textProcessing module
+        const textProcessingModule = safeTextProcessing();
+        let filteredEntities;
+        if (!textProcessingModule || !textProcessingModule.filterRedactedPII) {
+            console.warn('[PII Extension] textProcessing.filterRedactedPII not available, skipping filter');
+            filteredEntities = entities;
+        } else {
+            filteredEntities = textProcessingModule.filterRedactedPII(entities, originalText);
+            console.log(`[PII Extension] Filtered ${entities.length - filteredEntities.length} PII entities that overlap with redacted text`);
+        }
         
         // Find PII in the text by searching for each entity value in the current text
         const foundPII = [];
@@ -695,7 +853,7 @@ function highlightPiiForChatGPT(entities) {
                         }
                         
                         // Backend offset is valid - use ONLY this occurrence (if not inside email)
-                        if (!isInsideEmail && !textProcessing.isRedactedText(normalizedText, backendStart, backendEnd)) {
+                        if (!isInsideEmail && !safeIsRedactedText(normalizedText, backendStart, backendEnd)) {
                             occurrences.push({
                                 start: backendStart,
                                 end: backendEnd,
@@ -743,7 +901,7 @@ function highlightPiiForChatGPT(entities) {
                     // Verify it matches (case-insensitive, normalized)
                     if (actualText.toLowerCase() === lowerEntityValue) {
                         // Check if this position is already redacted
-                        if (!textProcessing.isRedactedText(normalizedText, foundIndex, foundIndex + normalizedEntityValue.length)) {
+                        if (!safeIsRedactedText(normalizedText, foundIndex, foundIndex + normalizedEntityValue.length)) {
                             // If backend provided offsets, prefer the match closest to that position
                             if (preferNearBackend && entity.start !== undefined) {
                                 const distanceFromBackend = Math.abs(foundIndex - entity.start);
@@ -794,7 +952,7 @@ function highlightPiiForChatGPT(entities) {
                         const actualText = normalizedText.substring(foundIndex, foundIndex + normalizedEntityValue.length);
                         
                         if (actualText.toLowerCase() === lowerEntityValue) {
-                            if (!textProcessing.isRedactedText(normalizedText, foundIndex, foundIndex + normalizedEntityValue.length)) {
+                            if (!safeIsRedactedText(normalizedText, foundIndex, foundIndex + normalizedEntityValue.length)) {
                                 const isDuplicate = occurrences.some(occ => 
                                     occ.start === foundIndex && occ.end === foundIndex + normalizedEntityValue.length
                                 );
@@ -827,7 +985,7 @@ function highlightPiiForChatGPT(entities) {
                         const actualText = match[0];
                         
                         // Check if this position is already redacted
-                        if (!textProcessing.isRedactedText(normalizedText, foundIndex, foundIndex + actualText.length)) {
+                        if (!safeIsRedactedText(normalizedText, foundIndex, foundIndex + actualText.length)) {
                             occurrences.push({
                                 start: foundIndex,
                                 end: foundIndex + actualText.length,
@@ -950,7 +1108,7 @@ function acceptAllPIIForChatGPT() {
                 if (storedStart >= 0 && storedEnd <= normalizedCurrentText.length) {
                     const textAtStoredPos = normalizedCurrentText.substring(storedStart, storedEnd);
                     if (textAtStoredPos.toLowerCase() === lowerPiiValue && 
-                        !textProcessing.isRedactedText(normalizedCurrentText, storedStart, storedEnd)) {
+                        !safeIsRedactedText(normalizedCurrentText, storedStart, storedEnd)) {
                         foundOccurrences.push({
                             start: storedStart,
                             end: storedEnd,
@@ -972,7 +1130,7 @@ function acceptAllPIIForChatGPT() {
                     
                     // Verify it matches (case-insensitive, normalized) and is not already redacted
                     if (actualText.toLowerCase() === lowerPiiValue) {
-                        if (!textProcessing.isRedactedText(normalizedCurrentText, foundIndex, foundIndex + normalizedPiiValue.length)) {
+                        if (!safeIsRedactedText(normalizedCurrentText, foundIndex, foundIndex + normalizedPiiValue.length)) {
                             foundOccurrences.push({
                                 start: foundIndex,
                                 end: foundIndex + normalizedPiiValue.length,
@@ -997,7 +1155,7 @@ function acceptAllPIIForChatGPT() {
                         const foundIndex = match.index;
                         const actualText = match[0];
                         
-                        if (!textProcessing.isRedactedText(normalizedCurrentText, foundIndex, foundIndex + actualText.length)) {
+                        if (!safeIsRedactedText(normalizedCurrentText, foundIndex, foundIndex + actualText.length)) {
                             foundOccurrences.push({
                                 start: foundIndex,
                                 end: foundIndex + actualText.length,
@@ -1029,7 +1187,7 @@ function acceptAllPIIForChatGPT() {
                     const actualText = normalizedCurrentText.substring(actualStart, actualEnd);
                     
                     if (actualText.toLowerCase() === lowerPiiValue && 
-                        !textProcessing.isRedactedText(normalizedCurrentText, actualStart, actualEnd)) {
+                        !safeIsRedactedText(normalizedCurrentText, actualStart, actualEnd)) {
                         foundOccurrences.push({
                             start: actualStart,
                             end: actualEnd,
@@ -1062,7 +1220,7 @@ function acceptAllPIIForChatGPT() {
         }
         
         // Remove overlapping spans to prevent offset calculation errors
-        const nonOverlappingSpans = textProcessing.removeOverlappingSpans(spans);
+        const nonOverlappingSpans = safeRemoveOverlappingSpans(spans);
         
         if (nonOverlappingSpans.length === 0) {
             return;
@@ -1071,13 +1229,13 @@ function acceptAllPIIForChatGPT() {
         // Sort spans by start position (required for offset tracking)
         nonOverlappingSpans.sort((a, b) => a.start - b.start);
         
-        // Create mask function
+        // Create mask function using safe helper
         const maskFor = (entity) => {
-            return textProcessing.getRedactionLabel(entity.type);
+            return safeGetRedactionLabel(entity.type);
         };
         
         // Use the new offset tracking system to redact all PII
-        const result = textProcessing.redactPIIWithOffsetTracking(normalizedCurrentText, nonOverlappingSpans, maskFor);
+        const result = safeRedactPIIWithOffsetTracking(normalizedCurrentText, nonOverlappingSpans, maskFor);
         
         console.log(`[PII Extension] Redacted ${nonOverlappingSpans.length} PII items using offset tracking system`);
         
@@ -1085,9 +1243,19 @@ function acceptAllPIIForChatGPT() {
         if (!window.piiMapping) {
             window.piiMapping = new Map();
         }
+        // Track order of each label type for proper matching
+        const labelOrderCounters = {};
+        
         nonOverlappingSpans.forEach((span, index) => {
-            const mappingId = textProcessing.generatePIIMappingId();
-            const maskedLabel = textProcessing.getRedactionLabel(span.entity.type);
+            const mappingId = safeGeneratePIIMappingId();
+            const maskedLabel = safeGetRedactionLabel(span.entity.type);
+            
+            // Track order for this label type
+            if (!labelOrderCounters[maskedLabel]) {
+                labelOrderCounters[maskedLabel] = 0;
+            }
+            const labelOrder = labelOrderCounters[maskedLabel]++;
+            
             const mapping = {
                 id: mappingId,
                 original: span.entity.value,
@@ -1095,11 +1263,12 @@ function acceptAllPIIForChatGPT() {
                 fake: null,
                 type: span.entity.type,
                 position: span.start,
+                labelOrder: labelOrder, // Order of this label in input field (0-based)
                 timestamp: Date.now()
             };
             
             window.piiMapping.set(mappingId, mapping);
-            console.log(`[PII Extension] Pre-stored mapping for future fill: ${mapping.original} -> ${mapping.masked}`);
+            console.log(`[PII Extension] Pre-stored mapping for future fill: ${mapping.original} -> ${mapping.masked} (order: ${labelOrder})`);
         });
         
         // Update input field safely (works for both ChatGPT and Gemini)
@@ -1343,7 +1512,7 @@ function createHighlightOverlay(segment, entity, textareaRect, textareaStyle, is
     overlay.setAttribute('data-pii-value', entity.value);
     overlay.setAttribute('data-pii-start', entity.start);
     overlay.setAttribute('data-pii-end', entity.end);
-    overlay.setAttribute('data-suggestion-id', textProcessing.generateSuggestionId());
+    overlay.setAttribute('data-suggestion-id', safeGenerateSuggestionId());
     
     // Ensure segment is within textarea bounds
     let left = Math.max(segment.left, textareaRect.left);
@@ -1520,7 +1689,7 @@ function createOverlayHighlight(rect, entity) {
     overlay.className = 'pii-overlay-highlight';
     overlay.setAttribute('data-pii-type', entity.type);
     overlay.setAttribute('data-pii-value', entity.value);
-    overlay.setAttribute('data-suggestion-id', textProcessing.generateSuggestionId());
+    overlay.setAttribute('data-suggestion-id', safeGenerateSuggestionId());
     
     overlay.style.position = 'absolute';
     overlay.style.left = rect.left + 'px';

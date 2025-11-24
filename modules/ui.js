@@ -845,11 +845,66 @@ function injectScanButton() {
         fillButton.innerHTML = `<span role="img" aria-label="Fill">🪄</span> Fill (faker)`;
         fillButton.onclick = () => {
             try {
-                if (window.PIIExtension.textProcessing && window.PIIExtension.textProcessing.fillRedactions) {
+                console.log('[PII Extension] Fill button clicked');
+                
+                // Retry mechanism: wait for module to be ready
+                const tryFill = (attempt = 0) => {
+                    const maxAttempts = 10;
+                    const delay = 100; // 100ms between attempts
+                    
+                    console.log(`[PII Extension] Fill attempt ${attempt + 1}/${maxAttempts}`);
+                    console.log(`[PII Extension] window.PIIExtension exists:`, !!window.PIIExtension);
+                    if (window.PIIExtension) {
+                        console.log(`[PII Extension] window.PIIExtension.textProcessing exists:`, !!window.PIIExtension.textProcessing);
+                        if (window.PIIExtension.textProcessing) {
+                            console.log(`[PII Extension] Available functions:`, Object.keys(window.PIIExtension.textProcessing));
+                        }
+                    }
+                    
+                    if (!window.PIIExtension) {
+                        if (attempt < maxAttempts) {
+                            console.log(`[PII Extension] PIIExtension not available, retrying... (${attempt + 1}/${maxAttempts})`);
+                            setTimeout(() => tryFill(attempt + 1), delay);
+                            return;
+                        }
+                        console.error('[PII Extension] PIIExtension not available after retries');
+                        return;
+                    }
+                    
+                    if (!window.PIIExtension.textProcessing) {
+                        if (attempt < maxAttempts) {
+                            console.log(`[PII Extension] textProcessing module not available, retrying... (${attempt + 1}/${maxAttempts})`);
+                            setTimeout(() => tryFill(attempt + 1), delay);
+                            return;
+                        }
+                        console.error('[PII Extension] textProcessing module not available after retries');
+                        console.error('[PII Extension] Debug info:', {
+                            hasPIIExtension: !!window.PIIExtension,
+                            hasTextProcessing: !!window.PIIExtension?.textProcessing,
+                            piiExtensionKeys: window.PIIExtension ? Object.keys(window.PIIExtension) : []
+                        });
+                        return;
+                    }
+                    
+                    if (!window.PIIExtension.textProcessing.fillRedactions) {
+                        if (attempt < maxAttempts) {
+                            console.log(`[PII Extension] fillRedactions function not available, retrying... (${attempt + 1}/${maxAttempts})`);
+                            setTimeout(() => tryFill(attempt + 1), delay);
+                            return;
+                        }
+                        console.error('[PII Extension] fillRedactions function not available after retries');
+                        console.error('[PII Extension] Available functions:', Object.keys(window.PIIExtension.textProcessing));
+                        return;
+                    }
+                    
+                    console.log('[PII Extension] Calling fillRedactions...');
                     window.PIIExtension.textProcessing.fillRedactions();
-                }
+                };
+                
+                tryFill();
             } catch (e) {
                 console.error('[PII Extension] Error in Fill button:', e);
+                console.error('[PII Extension] Error stack:', e.stack);
             }
         };
 
