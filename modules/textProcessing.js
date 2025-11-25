@@ -118,9 +118,16 @@ function generateFakeForType(type) {
         case 'PHONE':
         case 'PHONE_NUMBER':
             return `+1-${Math.floor(100+Math.random()*900)}-${Math.floor(100+Math.random()*900)}-${Math.floor(1000+Math.random()*9000)}`;
+        // Location-related: Single word to avoid offset issues
         case 'LOCATION':
         case 'ADDRESS':
-            return `${Math.floor(100+Math.random()*900)} ${randomChoice(['Oak St','Maple Ave','Pine Rd','Elm St','Cedar Ln','Main St','Park Ave','First St','Second Ave'])}, ${randomChoice(['Springfield','Riverton','Lakewood','Fairview','Greenwood','Riverside','Hillcrest','Brookside'])}`;
+        case 'STREET':
+        case 'CITY':
+        case 'STATE':
+        case 'COUNTRY':
+            return randomChoice(['Springfield','Riverton','Lakewood','Fairview','Greenwood','Riverside','Hillcrest','Brookside','Oakland','Portland','Austin','Denver','Phoenix','Seattle','Boston','Dallas']);
+        case 'BUILDINGNUM':
+            return `${Math.floor(1+Math.random()*999)}`;
         case 'ORGANIZATION':
         case 'COMPANY':
             return `${randomChoice(['Acme','Globex','Initech','Umbrella','Stark','Wayne','Oscorp','Cyberdyne','Tyrell'])} ${randomChoice(['LLC','Inc','Group','Co','Corp','Industries'])}`;
@@ -182,6 +189,11 @@ function labelToType(label) {
         case 'COUNTRY':
         case 'STATE':
             return 'LOCATION';
+        case 'BUILDINGNUM':
+        case 'BUILDING_NUM':
+        case 'BUILDINGNUMBER':
+        case 'BUILDING_NUMBER':
+            return 'BUILDINGNUM';
         case 'ORGANIZATION':
         case 'COMPANY':
         case 'ORG':
